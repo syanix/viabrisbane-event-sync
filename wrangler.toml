@@ -1,0 +1,33 @@
+compatibility_date = "2024-12-05"
+compatibility_flags = ["nodejs_compat"]
+
+name = "viabrisbane-event-sync"
+main = "src/server/index.ts"
+
+# Run the worker on a schedule (every day at 1 AM AEST, which is 15:00 UTC the previous day)
+[triggers]
+crons = ["0 15 * * *"]
+
+[[d1_databases]]
+binding = "DB
+database_name = "viabrisbane"
+database_id = "eaa7da18-d48c-4968-8672-20d290320793"
+preview_database_id = "2066c52d-b255-40b2-bfa0-56dc285617d4"
+
+[env.preview]
+name = "preview"
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "viabrisbane-preview"
+database_id = "2066c52d-b255-40b2-bfa0-56dc285617d4"
+
+# Test worker configuration
+[env.test]
+name = "viabrisbane-event-sync-test"
+main = "src/server/test.ts"
+
+[[env.test.d1_databases]]
+binding = "DB"
+database_name = "viabrisbane"
+database_id = "eaa7da18-d48c-4968-8672-20d290320793"
+preview_database_id = "2066c52d-b255-40b2-bfa0-56dc285617d4"

@@ -1,0 +1,223 @@
+import { ApiResponse, EventRecord } from './types';
+
+export interface Env {
+  DB: D1Database;
+}
+
+export default {
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(syncEvents(env));
+  },
+
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    try {
+      const result = await syncEvents(env);
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      console.error('Error syncing events:', error);
+      return new Response(JSON.stringify({ error: 'Failed to sync events' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  },
+};
+
+async function syncEvents(env: Env): Promise<{ success: boolean; message: string; count: number }> {
+  try {
+    // Get the latest event from the database
+    const latestEventQuery = await env.DB.prepare(
+      'SELECT start_datetime FROM events ORDER BY event_id DESC LIMIT 1'
+    ).first<{ start_datetime: string }>();
+
+    // Set the baseline date for the API query
+    let baselineDate: string;
+    if (latestEventQuery && latestEventQuery.start_datetime) {
+      // Extract the date part and set time to 00:00:00+00:00
+      const dateOnly = latestEventQuery.start_datetime.split('T')[0];
+      baselineDate = `${dateOnly}T00:00:00+00:00`;
+    } else {
+      // If no events in DB, use current date
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      baselineDate = `${year}-${month}-${day}T00:00:00+00:00`;
+    }
+
+    // Fetch and save all events
+    const savedCount = await fetchAndSaveAllEvents(env, baselineDate);
+
+    return {
+      success: true,
+      message: `Successfully synced ${savedCount} events`,
+      count: savedCount,
+    };
+  } catch (error) {
+    console.error('Error in syncEvents:', error);
+    throw error;
+  }
+}
+
+async function fetchAndSaveAllEvents(env: Env, startDateTime: string): Promise<number> {
+  const baseUrl = 'https://data.brisbane.qld.gov.au/api/explore/v2.1/catalog/datasets/brisbane-city-council-events/records';
+  const limit = 100;
+  let offset = 0;
+  let totalCount = 0;
+  let processedCount = 0;
+  let savedCount = 0;
+
+  do {
+    // Encode the date parameter properly
+    const encodedDate = encodeURIComponent(startDateTime);
+    const url = `${baseUrl}?where=start_datetime%20%3E%3D%20%27${encodedDate}%27&order_by=start_datetime&limit=${limit}&offset=${offset}`;
+    
+    console.log(`Fetching events from ${url}`);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API request failed: ${response.status} ${errorText}`);
+    }
+    
+    const data: ApiResponse = await response.json();
+    totalCount = data.total_count;
+    
+    if (data.results.length > 0) {
+      const saved = await saveEventsToDatabase(env, data.results);
+      savedCount += saved;
+    }
+    
+    processedCount += data.results.length;
+    offset += limit;
+    
+  } while (processedCount < totalCount);
+
+  return savedCount;
+}
+
+async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<number> {
+  let savedCount = 0;
+
+  // Process events in batches to avoid overwhelming the database
+  const batchSize = 20;
+  for (let i = 0; i < events.length; i += batchSize) {
+    const batch = events.slice(i, i + batchSize);
+    const statements = batch.map(event => {
+      // Check if the event already exists in the database using subject, location, and start_datetime
+      const checkStmt = env.DB.prepare(
+        'SELECT COUNT(*) as count FROM events WHERE subject = ? AND location = ? AND start_datetime = ?'
+      ).bind(event.subject || null, event.location || null, event.start_datetime || null);
+
+      // Ensure all values are defined or null before binding
+      const safeEvent = {
+        subject: event.subject || null,
+        web_link: event.web_link || null,
+        location: event.location || null,
+        start_datetime: event.start_datetime || null,
+        end_datetime: event.end_datetime || null,
+        formatteddatetime: event.formatteddatetime || null,
+        description: event.description || null,
+        event_template: event.event_template || null,
+        event_type: event.event_type || null,
+        parentevent: event.parentevent || null,
+        primaryeventtype: event.primaryeventtype || null,
+        cost: event.cost || null,
+        eventimage: event.eventimage || null,
+        age: event.age || null,
+        bookings: event.bookings || null,
+        bookingsrequired: typeof event.bookingsrequired === 'boolean' ? (event.bookingsrequired ? 1 : 0) : null,
+        agerange: event.agerange || null,
+        venue: event.venue || null,
+        venueaddress: event.venueaddress || null,
+        venuetype: event.venuetype || null,
+        maximumparticipantcapacity: event.maximumparticipantcapacity || null,
+        activitytype: event.activitytype || null,
+        requirements: event.requirements || null,
+        meetingpoint: event.meetingpoint || null,
+        suburb: event.suburb || null,
+        ward: event.ward || null,
+        waterwayaccessfacilities: event.waterwayaccessfacilities || null,
+        waterwayaccessinformation: event.waterwayaccessinformation || null,
+        status: event.status || null,
+        libraryeventtypes: event.libraryeventtypes || null,
+        eventtype: event.eventtype || null,
+        communityhall: event.communityhall || null,
+        locationifvenueunavailable: event.locationifvenueunavailable || null,
+        image: event.image || null,
+        externaleventid: event.externaleventid || null
+      };
+
+      // Prepare the insert statement
+      const insertStmt = env.DB.prepare(`
+        INSERT INTO events (
+          subject, web_link, location, start_datetime, end_datetime, formatteddatetime,
+          description, event_template, event_type, parentevent, primaryeventtype,
+          cost, eventimage, age, bookings, bookingsrequired, agerange,
+          venue, venueaddress, venuetype, maximumparticipantcapacity, activitytype,
+          requirements, meetingpoint, suburb, ward, waterwayaccessfacilities,
+          waterwayaccessinformation, status, libraryeventtypes, eventtype,
+          communityhall, locationifvenueunavailable, image, externaleventid
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        safeEvent.subject,
+        safeEvent.web_link,
+        safeEvent.location,
+        safeEvent.start_datetime,
+        safeEvent.end_datetime,
+        safeEvent.formatteddatetime,
+        safeEvent.description,
+        safeEvent.event_template,
+        safeEvent.event_type,
+        safeEvent.parentevent,
+        safeEvent.primaryeventtype,
+        safeEvent.cost,
+        safeEvent.eventimage,
+        safeEvent.age,
+        safeEvent.bookings,
+        safeEvent.bookingsrequired,
+        safeEvent.agerange,
+        safeEvent.venue,
+        safeEvent.venueaddress,
+        safeEvent.venuetype,
+        safeEvent.maximumparticipantcapacity,
+        safeEvent.activitytype,
+        safeEvent.requirements,
+        safeEvent.meetingpoint,
+        safeEvent.suburb,
+        safeEvent.ward,
+        safeEvent.waterwayaccessfacilities,
+        safeEvent.waterwayaccessinformation,
+        safeEvent.status,
+        safeEvent.libraryeventtypes,
+        safeEvent.eventtype,
+        safeEvent.communityhall,
+        safeEvent.locationifvenueunavailable,
+        safeEvent.image,
+        safeEvent.externaleventid
+      );
+
+      return { checkStmt, insertStmt, event: safeEvent };
+    });
+
+    // Execute the batch
+    for (const { checkStmt, insertStmt, event } of statements) {
+      try {
+        const result = await checkStmt.first<{ count: number }>();
+        if (!result || result.count === 0) {
+          await insertStmt.run();
+          savedCount++;
+          console.log(`Saved event: ${event.subject} | ${event.location} | ${event.start_datetime}`);
+        } else {
+          console.log(`Event already exists: ${event.subject} | ${event.location} | ${event.start_datetime}`);
+        }
+      } catch (error) {
+        console.error(`Error saving event ${event.subject}:`, error);
+      }
+    }
+  }
+
+  return savedCount;
+}

@@ -1,0 +1,31 @@
+{
+  "name": "viabrisbane-event-sync",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker to sync Brisbane City Council events to D1 database",
+  "main": "dist/server/index.js",
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --write 'src/**/*.{ts,js}'",
+    "lint": "eslint 'src/**/*.{ts,js}'",
+    "dev": "wrangler dev",
+    "dev:test": "wrangler dev --env test",
+    "deploy": "wrangler deploy",
+    "deploy:test": "wrangler deploy --env test",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "prettier": "^3.5.3",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.25.0"
+  }
+}
