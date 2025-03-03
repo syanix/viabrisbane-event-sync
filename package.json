@@ -7,6 +7,7 @@
     "build": "tsc",
     "format": "prettier --write 'src/**/*.{ts,js}'",
     "lint": "eslint 'src/**/*.{ts,js}'",
+    "check": "npm run lint && prettier --check 'src/**/*.{ts,js}'",
     "dev": "wrangler dev",
     "dev:test": "wrangler dev --env test",
     "deploy": "wrangler deploy",

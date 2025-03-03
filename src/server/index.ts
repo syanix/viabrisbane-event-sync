@@ -9,7 +9,7 @@ export default {
     ctx.waitUntil(syncEvents(env));
   },
 
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     try {
       const result = await syncEvents(env);
       return new Response(JSON.stringify(result), {
@@ -62,7 +62,8 @@ async function syncEvents(env: Env): Promise<{ success: boolean; message: string
 }
 
 async function fetchAndSaveAllEvents(env: Env, startDateTime: string): Promise<number> {
-  const baseUrl = 'https://data.brisbane.qld.gov.au/api/explore/v2.1/catalog/datasets/brisbane-city-council-events/records';
+  const baseUrl =
+    'https://data.brisbane.qld.gov.au/api/explore/v2.1/catalog/datasets/brisbane-city-council-events/records';
   const limit = 100;
   let offset = 0;
   let totalCount = 0;
@@ -73,26 +74,25 @@ async function fetchAndSaveAllEvents(env: Env, startDateTime: string): Promise<n
     // Encode the date parameter properly
     const encodedDate = encodeURIComponent(startDateTime);
     const url = `${baseUrl}?where=start_datetime%20%3E%3D%20%27${encodedDate}%27&order_by=start_datetime&limit=${limit}&offset=${offset}`;
-    
+
     console.log(`Fetching events from ${url}`);
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`API request failed: ${response.status} ${errorText}`);
     }
-    
+
     const data: ApiResponse = await response.json();
     totalCount = data.total_count;
-    
+
     if (data.results.length > 0) {
       const saved = await saveEventsToDatabase(env, data.results);
       savedCount += saved;
     }
-    
+
     processedCount += data.results.length;
     offset += limit;
-    
   } while (processedCount < totalCount);
 
   return savedCount;
@@ -105,7 +105,7 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
   const batchSize = 20;
   for (let i = 0; i < events.length; i += batchSize) {
     const batch = events.slice(i, i + batchSize);
-    const statements = batch.map(event => {
+    const statements = batch.map((event) => {
       // Check if the event already exists in the database using subject, location, and start_datetime
       const checkStmt = env.DB.prepare(
         'SELECT COUNT(*) as count FROM events WHERE subject = ? AND location = ? AND start_datetime = ?'
@@ -128,7 +128,8 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         eventimage: event.eventimage || null,
         age: event.age || null,
         bookings: event.bookings || null,
-        bookingsrequired: typeof event.bookingsrequired === 'boolean' ? (event.bookingsrequired ? 1 : 0) : null,
+        bookingsrequired:
+          typeof event.bookingsrequired === 'boolean' ? (event.bookingsrequired ? 1 : 0) : null,
         agerange: event.agerange || null,
         venue: event.venue || null,
         venueaddress: event.venueaddress || null,
@@ -147,11 +148,12 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         communityhall: event.communityhall || null,
         locationifvenueunavailable: event.locationifvenueunavailable || null,
         image: event.image || null,
-        externaleventid: event.externaleventid || null
+        externaleventid: event.externaleventid || null,
       };
 
       // Prepare the insert statement
-      const insertStmt = env.DB.prepare(`
+      const insertStmt = env.DB.prepare(
+        `
         INSERT INTO events (
           subject, web_link, location, start_datetime, end_datetime, formatteddatetime,
           description, event_template, event_type, parentevent, primaryeventtype,
@@ -161,7 +163,8 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
           waterwayaccessinformation, status, libraryeventtypes, eventtype,
           communityhall, locationifvenueunavailable, image, externaleventid
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
+      `
+      ).bind(
         safeEvent.subject,
         safeEvent.web_link,
         safeEvent.location,
@@ -209,9 +212,13 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         if (!result || result.count === 0) {
           await insertStmt.run();
           savedCount++;
-          console.log(`Saved event: ${event.subject} | ${event.location} | ${event.start_datetime}`);
+          console.log(
+            `Saved event: ${event.subject} | ${event.location} | ${event.start_datetime}`
+          );
         } else {
-          console.log(`Event already exists: ${event.subject} | ${event.location} | ${event.start_datetime}`);
+          console.log(
+            `Event already exists: ${event.subject} | ${event.location} | ${event.start_datetime}`
+          );
         }
       } catch (error) {
         console.error(`Error saving event ${event.subject}:`, error);

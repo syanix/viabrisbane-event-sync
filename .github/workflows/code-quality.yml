@@ -25,7 +25,8 @@ jobs:
         run: npm ci
         
       - name: Run ESLint
-        run: npm run lint
+        # Use --no-eslintrc to force ESLint to use .eslintrc.js instead of looking for eslint.config.js
+        run: npx eslint --no-eslintrc -c .eslintrc.js 'src/**/*.{ts,js}'
         
       - name: Check Prettier formatting
         run: npx prettier --check 'src/**/*.{ts,js}'
