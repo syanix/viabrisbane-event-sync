@@ -9,7 +9,7 @@ main = "src/server/index.ts"
 crons = ["0 15 * * *"]
 
 [[d1_databases]]
-binding = "DB
+binding = "DB"
 database_name = "viabrisbane"
 database_id = "eaa7da18-d48c-4968-8672-20d290320793"
 preview_database_id = "2066c52d-b255-40b2-bfa0-56dc285617d4"
