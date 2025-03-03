@@ -111,6 +111,15 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         'SELECT COUNT(*) as count FROM events WHERE subject = ? AND location = ? AND start_datetime = ?'
       ).bind(event.subject || null, event.location || null, event.start_datetime || null);
 
+      // Extract externaleventid from web_link if available
+      let extractedEventId = null;
+      if (event.web_link) {
+        const eventIdMatch = event.web_link.match(/eventid%3d(\d+)/);
+        if (eventIdMatch && eventIdMatch[1]) {
+          extractedEventId = eventIdMatch[1];
+        }
+      }
+
       // Ensure all values are defined or null before binding
       const safeEvent = {
         subject: event.subject || null,
@@ -148,7 +157,7 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         communityhall: event.communityhall || null,
         locationifvenueunavailable: event.locationifvenueunavailable || null,
         image: event.image || null,
-        externaleventid: event.externaleventid || null,
+        externaleventid: extractedEventId || event.externaleventid || null,
       };
 
       // Prepare the insert statement
