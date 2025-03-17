@@ -36,6 +36,7 @@ export interface EventRecord {
   locationifvenueunavailable: string | null; // locationifvenueunavailable
   image: string | null; // image
   externaleventid: string | null; // externaleventid
+  slug?: string | null; // URL-friendly slug for the event
 }
 
 export interface ApiResponse {

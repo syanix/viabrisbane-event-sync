@@ -1,5 +1,36 @@
 import { ApiResponse, EventRecord } from './types';
 
+// Add slug generation functions
+/**
+ * Normalizes a string for use in a URL
+ * Replaces spaces with hyphens, removes special characters
+ */
+function normalizeForUrl(str: string): string {
+  const normalized = (str || '')
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with a single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+
+  return normalized || 'unknown'; // Default value if empty
+}
+
+/**
+ * Creates a URL-friendly slug from a subject and location
+ */
+function createSlug(subject: string | null, location: string | null): string {
+  // Normalize inputs
+  const normalizedSubject = (subject || '').trim().toLowerCase();
+  const normalizedLocation = (location || '').trim().toLowerCase();
+
+  // Create slug components
+  const subjectSlug = normalizeForUrl(normalizedSubject);
+  const locationSlug = normalizeForUrl(normalizedLocation);
+
+  // Combine components and ensure result is lowercase
+  return `${subjectSlug}-${locationSlug}`.toLowerCase();
+}
+
 export interface Env {
   DB: D1Database;
 }
@@ -120,6 +151,9 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         }
       }
 
+      // Generate slug for the event
+      const slug = createSlug(event.subject, event.location);
+
       // Ensure all values are defined or null before binding
       const safeEvent = {
         subject: event.subject || null,
@@ -158,6 +192,7 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         locationifvenueunavailable: event.locationifvenueunavailable || null,
         image: event.image || null,
         externaleventid: extractedEventId || event.externaleventid || null,
+        slug: slug, // Add the generated slug
       };
 
       // Prepare the insert statement
@@ -170,8 +205,8 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
           venue, venueaddress, venuetype, maximumparticipantcapacity, activitytype,
           requirements, meetingpoint, suburb, ward, waterwayaccessfacilities,
           waterwayaccessinformation, status, libraryeventtypes, eventtype,
-          communityhall, locationifvenueunavailable, image, externaleventid
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          communityhall, locationifvenueunavailable, image, externaleventid, slug
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
       ).bind(
         safeEvent.subject,
@@ -208,7 +243,8 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         safeEvent.communityhall,
         safeEvent.locationifvenueunavailable,
         safeEvent.image,
-        safeEvent.externaleventid
+        safeEvent.externaleventid,
+        safeEvent.slug
       );
 
       return { checkStmt, insertStmt, event: safeEvent };
@@ -222,7 +258,7 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
           await insertStmt.run();
           savedCount++;
           console.log(
-            `Saved event: ${event.subject} | ${event.location} | ${event.start_datetime}`
+            `Saved event: ${event.subject} | ${event.location} | ${event.start_datetime} | Slug: ${event.slug}`
           );
         } else {
           console.log(
