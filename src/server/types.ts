@@ -9,20 +9,20 @@ export interface EventRecord {
   formatteddatetime: string | null; // formattedDatetime
   description: string | null; // description
   event_template: string | null; // eventTemplate
-  event_type: string | null; // eventType
+  event_type: string | string[] | null; // eventType - can be array in API
   parentevent: string | null; // parentEvent
   primaryeventtype: string | null; // primaryEventType
   cost: string | null; // cost
   eventimage: string | null; // eventImage
   age: string | null; // age
   bookings: string | null; // bookings
-  bookingsrequired: number | null; // bookingsRequired (integer in schema)
-  agerange: string | null; // ageRange
+  bookingsrequired: number | string | null; // bookingsRequired (can be boolean string or number)
+  agerange: string | string[] | null; // ageRange - can be array in API
   venue: string | null; // venue
   venueaddress: string | null; // venueAddress
   venuetype: string | null; // venueType
   maximumparticipantcapacity: string | null; // maximumParticipantCapacity
-  activitytype: string | null; // activityType
+  activitytype: string | string[] | null; // activityType - can be array in API
   requirements: string | null; // requirements
   meetingpoint: string | null; // meetingPoint
   suburb: string | null; // suburb
@@ -30,7 +30,7 @@ export interface EventRecord {
   waterwayaccessfacilities: string | null; // waterwayAccessFacilities
   waterwayaccessinformation: string | null; // waterwayAccessInformation
   status: string | null; // status
-  libraryeventtypes: string | null; // libraryEventTypes
+  libraryeventtypes: string | string[] | null; // libraryEventTypes - can be array in API
   eventtype: string | null; // eventTypeField
   communityhall: string | null; // communityHall
   locationifvenueunavailable: string | null; // locationifvenueunavailable

@@ -154,6 +154,15 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
       // Generate slug for the event
       const slug = createSlug(event.subject, event.location);
 
+      // Helper function to convert arrays to comma-separated strings
+      const arrayToString = (value: string | string[] | null | undefined): string | null => {
+        if (value === null || value === undefined) return null;
+        if (Array.isArray(value)) {
+          return value.join(', ');
+        }
+        return String(value);
+      };
+
       // Ensure all values are defined or null before binding
       const safeEvent = {
         subject: event.subject || null,
@@ -164,7 +173,7 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         formatteddatetime: event.formatteddatetime || null,
         description: event.description || null,
         event_template: event.event_template || null,
-        event_type: event.event_type || null,
+        event_type: arrayToString(event.event_type),
         parentevent: event.parentevent || null,
         primaryeventtype: event.primaryeventtype || null,
         cost: event.cost || null,
@@ -173,12 +182,12 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         bookings: event.bookings || null,
         bookingsrequired:
           typeof event.bookingsrequired === 'boolean' ? (event.bookingsrequired ? 1 : 0) : null,
-        agerange: event.agerange || null,
+        agerange: arrayToString(event.agerange),
         venue: event.venue || null,
         venueaddress: event.venueaddress || null,
         venuetype: event.venuetype || null,
         maximumparticipantcapacity: event.maximumparticipantcapacity || null,
-        activitytype: event.activitytype || null,
+        activitytype: arrayToString(event.activitytype),
         requirements: event.requirements || null,
         meetingpoint: event.meetingpoint || null,
         suburb: event.suburb || null,
@@ -186,7 +195,7 @@ async function saveEventsToDatabase(env: Env, events: EventRecord[]): Promise<nu
         waterwayaccessfacilities: event.waterwayaccessfacilities || null,
         waterwayaccessinformation: event.waterwayaccessinformation || null,
         status: event.status || null,
-        libraryeventtypes: event.libraryeventtypes || null,
+        libraryeventtypes: arrayToString(event.libraryeventtypes),
         eventtype: event.eventtype || null,
         communityhall: event.communityhall || null,
         locationifvenueunavailable: event.locationifvenueunavailable || null,
